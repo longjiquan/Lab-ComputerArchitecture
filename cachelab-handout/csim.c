@@ -115,44 +115,44 @@ void accessData(mem_addr_t addr)
     mem_addr_t set_index = (addr >> b) & set_index_mask;
     mem_addr_t tag = addr >> (s+b);
 
-    cache_set_t cache_set = cache[set_index];                                    // 通过内存地址索引到特定的组
+    cache_set_t cache_set = cache[set_index];                                     // 通过内存地址索引到特定的组
 
-                                                                                 // 去特定的组里面去找cacheline(块)
-    for (i = 0; i < E; ++i) {                                                    // 每个cache set里面block的块数为E
-        if (tag == cache_set[i].tag && cache_set[i].valid == 1) {                // tag相等且有效，命中
-            cache_set[i].lru = 0;                                                // 命中后计数器清零
-            hit_count++;                                                         // 命中数加1
+                                                                                  // 去特定的组里面去找cacheline(块)
+    for (i = 0; i < E; ++i) {                                                     // 每个cache set里面block的块数为E
+        if (tag == cache_set[i].tag && cache_set[i].valid == 1) {                 // tag相等且有效，命中
+            cache_set[i].lru = 0;                                                 // 命中后计数器清零
+            hit_count++;                                                          // 命中数加1
             printf(" hit ");
             break;
-        } else {                                                                 // 对于那些不命中的cache块，要增加lru计数器的值
+        } else {                                                                  // 对于那些不命中的cache块，要增加lru计数器的值
             cache_set[i].lru = cache_set[i].lru + 1;
         }
-    }                                                                            // end for compare
+    }                                                                             // end for compare
 
-    if (i >= E) {                                                                // 全部比较完毕后未命中
-        miss_count++;                                                            // 不命中数增加
+    if (i >= E) {                                                                 // 全部比较完毕后未命中
+        miss_count++;                                                             // 不命中数增加
         printf(" miss ");
         int free_cache_index;
-        int out_index = 0;                                                       // 将要被淘汰的块
+        int out_index = 0;                                                        // 将要被淘汰的块
         int out_of_date_lru = cache_set[0].lru;
 
-        for (free_cache_index = 0; free_cache_index < E; ++free_cache_index) {   // 找valid == 0的那些cacheline，即空闲cache块
-            if (cache_set[free_cache_index].valid == 0) {                                       // 写入tag， valid有效，lru计数值清零
+        for (free_cache_index = 0; free_cache_index < E; ++free_cache_index) {    // 找valid == 0的那些cacheline，即空闲cache块
+            if (cache_set[free_cache_index].valid == 0) {                         // 写入tag， valid有效，lru计数值清零
                 cache_set[free_cache_index].valid = 1;
                 cache_set[free_cache_index].tag = tag;
                 cache_set[free_cache_index].lru = 0;
                 break;
             }
-            if (out_of_date_lru < cache_set[free_cache_index].lru) {                            // 查找lru计数值最大的那一块
+            if (out_of_date_lru < cache_set[free_cache_index].lru) {              // 查找lru计数值最大的那一块
                 out_index = free_cache_index;
                 out_of_date_lru = cache_set[i].lru;
             }
-        }                                                                        // end for search valid == 0 of cacheline
-        if (free_cache_index >= E) {                                             // cache满了，将out_index所在的block淘汰
+        }                                                                         // end for search valid == 0 of cacheline
+        if (free_cache_index >= E) {                                              // cache满了，将out_index所在的block淘汰
             cache_set[out_index].valid = 1;
             cache_set[out_index].tag = tag;
             cache_set[out_index].lru = 0;
-            eviction_count++;                                                    // 淘汰数加1
+            eviction_count++;                                                     // 淘汰数加1
             printf(" eviction ");
         }
     }
