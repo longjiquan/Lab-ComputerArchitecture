@@ -145,7 +145,7 @@ void accessData(mem_addr_t addr)
             }
             if (out_of_date_lru < cache_set[free_cache_index].lru) {              // 查找lru计数值最大的那一块
                 out_index = free_cache_index;
-                out_of_date_lru = cache_set[i].lru;
+                out_of_date_lru = cache_set[free_cache_index].lru;
             }
         }                                                                         // end for search valid == 0 of cacheline
         if (free_cache_index >= E) {                                              // cache满了，将out_index所在的block淘汰
