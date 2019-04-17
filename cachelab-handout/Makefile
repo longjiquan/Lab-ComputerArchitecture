@@ -4,7 +4,6 @@
 #
 CC = gcc
 # CFLAGS = -g -Wall -Werror -std=c99 -m64
-# CFLAGS = -g -Wall -std=c99 -m64
 CFLAGS = -g -std=c99 -m64
 
 all: csim test-trans tracegen
