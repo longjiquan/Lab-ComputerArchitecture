@@ -22,6 +22,95 @@ int is_transpose(int M, int N, int A[N][M], int B[M][N]);
 char transpose_submit_desc[] = "Transpose submission";
 void transpose_submit(int M, int N, int A[N][M], int B[M][N])
 {
+    int tmp,index;
+    if(M==32)
+    {
+        for(int k = 0;k < M ;k+=8)
+        {
+            for(int l =0 ;l < N; l+=8)
+            {
+                for(int i=k ; i<k+8;i++)
+                {
+                    for(int j=l;j<l+8;j++)
+                    {
+                        if(i!=j)
+                        {
+                            B[j][i] = A[i][j];
+                        }
+                        else
+                        {
+                            tmp = A[i][j];                 
+                            index = i;
+                        }
+                    }
+                    if(l == k)
+                    {
+                        B[index][index] = tmp;
+                    }
+                }
+            }
+        }
+    }
+    else if(M==64)
+    {
+        int a1,a2,a3,a4,a5,a6,a7,a8;
+        for(int i=0;i<64;i+=8)
+        {
+            for(int j=0;j<64;j+=8)
+            {
+                for(int k=j;k<j+4;++k)
+                {
+                    a1=A[k][i];a2=A[k][i+1];a3=A[k][i+2];a4=A[k][i+3];
+                    a5=A[k][i+4];a6=A[k][i+5];a7=A[k][i+6];a8=A[k][i+7];
+
+                    B[i][k]=a1;B[i][k+4]=a5;B[i+1][k]=a2;B[i+1][k+4]=a6;
+                    B[i+2][k]=a3;B[i+2][k+4]=a7;B[i+3][k]=a4;B[i+3][k+4]=a8;                         
+                }
+                for(int k=i;k<i+4;++k)
+                {
+                    a1=B[k][j+4];a2=B[k][j+5];a3=B[k][j+6];a4=B[k][j+7];
+                    a5=A[j+4][k];a6=A[j+5][k];a7=A[j+6][k];a8=A[j+7][k];
+
+                    B[k][j+4]=a5;B[k][j+5]=a6;B[k][j+6]=a7;B[k][j+7]=a8;
+                    B[k+4][j]=a1;B[k+4][j+1]=a2;B[k+4][j+2]=a3;B[k+4][j+3]=a4;
+                }
+                for(int k=i+4;k<i+8;++k)
+                {
+                    a1=A[j+4][k];a2=A[j+5][k];a3=A[j+6][k];a4=A[j+7][k];
+
+                    B[k][j+4]=a1;B[k][j+5]=a2;B[k][j+6]=a3;B[k][j+7]=a4;
+                }
+            }
+        }
+    }
+    else
+    {
+        for(int k = 0;k < N ;k+=16)
+        {
+            for(int l =0 ;l < M; l+=16)
+            {
+                for(int i=k ; i<k+16 && (i<N);i++)
+                {
+                    for(int j=l;j<l+16 &&(j<M);j++)
+                    {
+                        if(i!=j)
+                        {
+                            B[j][i] = A[i][j];
+                        }
+                        else
+                        {
+                            tmp = A[i][j];                 
+                            index = i;
+                        }
+                    }
+                    if(l == k)
+                    {
+                        B[index][index] = tmp;
+                    }
+                }
+            }
+        }
+    }
 }
 
 /* 

@@ -93,7 +93,7 @@ void initCache()
  */
 void freeCache()
 {
-    int i, j;
+    int i;
     for (i = 0; i < S; ++i) {
         free(cache[i]);
     }// end for free every group cacheline
@@ -111,54 +111,67 @@ void freeCache()
 void accessData(mem_addr_t addr)
 {
     int i;
-    unsigned long long int eviction_lru = ULONG_MAX;
-    unsigned int eviction_line = 0;
+    // unsigned long long int eviction_lru = ULONG_MAX;
+    // unsigned int eviction_line = 0;
     mem_addr_t set_index = (addr >> b) & set_index_mask;
     mem_addr_t tag = addr >> (s+b);
 
-    cache_set_t cache_set = cache[set_index];                                     // 通过内存地址索引到特定的组
+    cache_set_t cache_set = cache[set_index];                                      // 通过内存地址索引到特定的组
 
-                                                                                  // 去特定的组里面去找cacheline(块)
-    for (i = 0; i < E; ++i) {                                                     // 每个cache set里面block的块数为E
-        if (tag == cache_set[i].tag && cache_set[i].valid == 1) {                 // tag相等且有效，命中
-            cache_set[i].lru = 0;                                                 // 命中后计数器清零
-            hit_count++;                                                          // 命中数加1
-            printf(" hit ");
-            break;
-        } else {                                                                  // 对于那些不命中的cache块，要增加lru计数器的值
+    int isHit = 0;                                                                 // 是否命中
+
+                                                                                   // 去特定的组里面去找cacheline(块)
+    for (i = 0; i < E; ++i) {                                                      // 每个cache set里面block的块数为E
+        if (tag == cache_set[i].tag && cache_set[i].valid == 1) {                  // tag相等且有效，命中
+            cache_set[i].lru = 0;                                                  // 命中后计数器清零
+            hit_count++;                                                           // 命中数加1
+            printf(" hit");
+            // 问题在这里：break;
+            // break之后后面的lru不会更新
+            isHit = 1;
+        } else {                                                                   // 对于那些不命中的cache块，要增加lru计数器的值
             cache_set[i].lru = cache_set[i].lru + 1;
         }
-    }                                                                             // end for compare
+    }                                                                              // end for compare
 
-    if (i >= E) {                                                                 // 全部比较完毕后未命中
-        miss_count++;                                                             // 不命中数增加
-        printf(" miss ");
-        int free_cache_index;
-        int out_index = 0;                                                        // 将要被淘汰的块
+    if (isHit != 1) {                                                              // 全部比较完毕后未命中
+        miss_count++;                                                              // 不命中数增加
+        printf(" miss");
+        int idx;
+        int out_index = 0;                                                         // 将要被淘汰的块
         int out_of_date_lru = cache_set[0].lru;
 
-        for (free_cache_index = 0; free_cache_index < E; ++free_cache_index) {    // 找valid == 0的那些cacheline，即空闲cache块
-            if (cache_set[free_cache_index].valid == 0) {                         // 写入tag， valid有效，lru计数值清零
-                cache_set[free_cache_index].valid = 1;
-                cache_set[free_cache_index].tag = tag;
-                cache_set[free_cache_index].lru = 0;
+        for (idx = 0; idx < E; ++idx) {                                            // 找valid == 0的那些cacheline，即空闲cache块
+            if (cache_set[idx].valid == 0) {                                       // 写入tag， valid有效，lru计数值清零
+                cache_set[idx].valid = 1;
+                cache_set[idx].tag = tag;
+                cache_set[idx].lru = 0;
                 break;
             }
-            if (out_of_date_lru < cache_set[free_cache_index].lru) {              // 查找lru计数值最大的那一块
-                out_index = free_cache_index;
-                out_of_date_lru = cache_set[free_cache_index].lru;
+            if (out_of_date_lru < cache_set[idx].lru) {                            // 查找lru计数值最大的那一块
+                out_index = idx;
+                out_of_date_lru = cache_set[idx].lru;
             }
-        }                                                                         // end for search valid == 0 of cacheline
-        if (free_cache_index >= E) {                                              // cache满了，将out_index所在的block淘汰
+        }                                                                          // end for search valid == 0 of cacheline
+        if (idx >= E) {                                                            // cache满了，将out_index所在的block淘汰
             cache_set[out_index].valid = 1;
             cache_set[out_index].tag = tag;
             cache_set[out_index].lru = 0;
-            eviction_count++;                                                     // 淘汰数加1
-            printf(" eviction ");
+            eviction_count++;                                                      // 淘汰数加1
+            printf(" eviction");
         }
     }
 }
 
+void removeSpace(char* str) {
+    char* str_rtn = (char*)malloc(strlen(str) + 1);
+    if (str[0] != ' ') {
+        strcpy(str_rtn, &str[0]);
+    } else {
+        strcpy(str_rtn, &str[1]);
+    }
+    strcpy(str, str_rtn);
+}
 
 /*
  * replayTrace - replays the given trace file against the cache 
@@ -174,20 +187,21 @@ void replayTrace(char* trace_fn)
     FILE* trace_fp = fopen(trace_fn, "r");
 
     while (1) {                                                 // 注：此处代码不是本cache实验重点，因此直接使用学长zhangxinhust的开源代码
-        long long int tmp;                                      // 学长此处为int，有错误
         char* ret_p = fgets(buf, sizeof(char) * 999, trace_fp);
         if (ret_p == NULL) {
             break;
         } else {
             ret_p[strlen(ret_p) - 1] = '\0';
-            printf("%s ", ret_p);
-            sscanf(buf, "%c%c%x%d", &op, &op, &tmp, &len);
-            addr = tmp;
+            removeSpace(ret_p);
+            sscanf(buf, "%c%llx%d", &op, &addr, &len);
+            // printf("ret P : %s, op : %d\n", ret_p, op);
             if (op == 'L' || op == 'S') {                       // case 1 : Load/Store
+                printf("%s", ret_p);
                 accessData(addr);
             } else if (op == 'I') {                             // case 2 : Instruction cache
                 continue;
             } else if (op == 'M') {                             // case 3 : Modify
+                printf("%s", ret_p);
                 accessData(addr);
                 accessData(addr);
             }
